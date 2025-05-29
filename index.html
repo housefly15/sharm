@@ -320,7 +320,7 @@
             const processedImages = [];
             
             for (let i = 0; i < imageFiles.length; i++) {
-                const imagePath = `images/${imageFiles[i]}`;
+                const imagePath = `public/images/${imageFiles[i]}`;
                 try {
                     const imageData = await processImage(imagePath, i);
                     processedImages.push(imageData);
