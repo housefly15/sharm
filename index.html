@@ -219,6 +219,17 @@
             text-align: center;
         }
 
+        .debug-info {
+            background: #f39c12;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
         @media (max-width: 768px) {
             .gallery {
                 grid-template-columns: 1fr;
@@ -266,29 +277,52 @@
     </div>
 
     <script>
-        // GitHub/Netlify automatikus képfelderítés
-        async function discoverImagesFromRepo() {
+        // Helyi képfelderítés az images mappából
+        async function discoverLocalImages() {
             const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'JPG', 'JPEG', 'PNG', 'WEBP'];
-            const commonPrefixes = [
-                'DSC_', 'IMG_', 'DSCN', 'P', '_MG_', 'IMGP', 'DJI_', 'GOPR', 
-                'photo', 'image', 'pic', 'izland', 'iceland', '20', 'IMG-'
-            ];
-            
             const discoveredImages = [];
             
-            // Próbálkozás különböző fájlnevekkel
-            for (let i = 1; i <= 100; i++) {
-                for (const prefix of commonPrefixes) {
+            // Konkrét fájlnevek az eredeti sagik.netlify.app alapján
+            const knownImageNames = [
+                'DSC_2007-2048-FB-LC_t',
+                'DSC_2008-2048-FB-LC_t',
+                'DSC_2010-2048-FB-LC_t',
+                'DSC_2026-2048-FB-LC_t',
+                'DSC_2044-2048-FB-LC_t',
+                'DSC_2051-HDR-2048-FB-LC_t',
+                'DSC_2069-2048-FB-LC_t',
+                'DSC_2079-HDR-2048-FB-LC_t',
+                'DSC_2082-HDR-2048-FB-LC_t',
+                'DSC_2090-HDR-2048-FB-LC_t'
+            ];
+            
+            // Először próbáljuk a konkrét neveket
+            for (const name of knownImageNames) {
+                for (const ext of imageExtensions) {
+                    discoveredImages.push(`./images/${name}.${ext}`);
+                }
+            }
+            
+            // Általános DSC_ fájlnevek
+            for (let i = 2000; i <= 2100; i++) {
+                for (const ext of imageExtensions) {
+                    discoveredImages.push(`./images/DSC_${i}.${ext}`);
+                    discoveredImages.push(`./images/DSC_${i}-HDR.${ext}`);
+                    discoveredImages.push(`./images/DSC_${i}-2048-FB-LC_t.${ext}`);
+                    discoveredImages.push(`./images/DSC_${i}-HDR-2048-FB-LC_t.${ext}`);
+                }
+            }
+            
+            // Egyéb gyakori formátumok
+            const commonPrefixes = ['IMG_', 'DSCN', 'P', '_MG_', 'IMGP', 'DJI_', 'GOPR'];
+            for (const prefix of commonPrefixes) {
+                for (let i = 1; i <= 50; i++) {
                     for (const ext of imageExtensions) {
-                        // Különböző számformátumok
                         const formats = [
-                            String(i).padStart(4, '0'),  // 0001
-                            String(i).padStart(3, '0'),  // 001
-                            String(i),                   // 1
-                            String(2000 + i),           // 2001
-                            String(i).padStart(2, '0')   // 01
+                            String(i).padStart(4, '0'),
+                            String(i).padStart(3, '0'),
+                            String(i)
                         ];
-                        
                         for (const format of formats) {
                             discoveredImages.push(`./images/${prefix}${format}.${ext}`);
                         }
@@ -296,9 +330,9 @@
                 }
             }
             
-            // Egyszerű fájlnevek
-            for (const ext of imageExtensions) {
-                for (let i = 1; i <= 50; i++) {
+            // Egyszerű számozott fájlnevek
+            for (let i = 1; i <= 30; i++) {
+                for (const ext of imageExtensions) {
                     discoveredImages.push(`./images/${i}.${ext}`);
                     discoveredImages.push(`./images/image${i}.${ext}`);
                     discoveredImages.push(`./images/photo${i}.${ext}`);
@@ -306,32 +340,42 @@
                 }
             }
             
-            // Batch ellenőrzés a képek létezésére
-            const existingImages = [];
-            const batchSize = 10;
+            console.log(`🔍 ${discoveredImages.length} lehetséges képútvonal generálva`);
             
-            for (let i = 0; i < discoveredImages.length; i += batchSize) {
-                const batch = discoveredImages.slice(i, i + batchSize);
-                const promises = batch.map(async (imageUrl) => {
-                    try {
-                        const response = await fetch(imageUrl, { 
-                            method: 'HEAD',
-                            cache: 'no-cache'
-                        });
-                        return response.ok ? imageUrl : null;
-                    } catch (e) {
-                        return null;
+            // Ellenőrizzük, mely képek léteznek
+            const existingImages = [];
+            let checkedCount = 0;
+            
+            for (const imageUrl of discoveredImages) {
+                try {
+                    const response = await fetch(imageUrl, { 
+                        method: 'HEAD',
+                        cache: 'no-cache'
+                    });
+                    
+                    if (response.ok) {
+                        console.log(`✅ Talált kép: ${imageUrl}`);
+                        existingImages.push(imageUrl);
                     }
-                });
+                } catch (e) {
+                    // Kép nem létezik
+                }
                 
-                const results = await Promise.all(promises);
-                existingImages.push(...results.filter(url => url !== null));
+                checkedCount++;
                 
-                // Ha már találtunk képeket, ne keressünk tovább
-                if (existingImages.length >= 20) break;
+                // Ha már találtunk elegendő képet, ne keressünk tovább
+                if (existingImages.length >= 20) {
+                    console.log(`🎯 ${existingImages.length} kép találva, keresés befejezve`);
+                    break;
+                }
+                
+                // Progress log minden 50. ellenőrzésnél
+                if (checkedCount % 50 === 0) {
+                    console.log(`📊 Ellenőrizve: ${checkedCount}, Találva: ${existingImages.length}`);
+                }
             }
             
-            return existingImages.slice(0, 30); // Maximum 30 kép
+            return existingImages;
         }
 
         // Izlandi helyszínek adatbázisa
@@ -543,39 +587,51 @@
             document.getElementById('analyzedImages').textContent = analyzedImages;
         }
 
+        // Debug információk megjelenítése
+        function showDebugInfo(message) {
+            const gallery = document.getElementById('gallery');
+            const debugDiv = document.createElement('div');
+            debugDiv.className = 'debug-info';
+            debugDiv.innerHTML = `<strong>🔧 Debug:</strong> ${message}`;
+            gallery.appendChild(debugDiv);
+        }
+
         // Galéria betöltése
         async function loadGallery() {
             const gallery = document.getElementById('gallery');
             
             try {
-                console.log('Képek felderítése kezdődik...');
-                const imageUrls = await discoverImagesFromRepo();
+                console.log('🏔️ Izland Fotógaléria inicializálva');
+                console.log('📁 Keresési útvonal: ./images/');
+                console.log('🔍 Támogatott formátumok: JPG, JPEG, PNG, WEBP');
+                
+                showDebugInfo('Képek felderítése kezdődik...');
+                
+                const imageUrls = await discoverLocalImages();
                 
                 if (imageUrls.length === 0) {
                     gallery.innerHTML = `
                         <div class="error-message">
                             <h3>📁 Nincsenek képek az images mappában</h3>
-                            <p><strong>Netlify deploy útmutató:</strong></p>
-                            <ol style="text-align: left; display: inline-block; margin: 15px 0;">
-                                <li>Hozz létre egy "images" mappát a projekt gyökerében</li>
-                                <li>Töltsd fel a képeket ebbe a mappába</li>
-                                <li>Push-old a változásokat GitHub-ra</li>
-                                <li>Netlify automatikusan újra deploy-olja a site-ot</li>
-                            </ol>
-                            <p>Támogatott formátumok: JPG, JPEG, PNG, WEBP</p>
+                            <p><strong>Ellenőrizendő dolgok:</strong></p>
+                            <ul style="text-align: left; display: inline-block; margin: 15px 0;">
+                                <li>Van "images" mappa a projekt gyökerében?</li>
+                                <li>Vannak képfájlok az images mappában?</li>
+                                <li>A webszerver fut? (python3 -m http.server 8000)</li>
+                                <li>A helyes URL-en vagy? (http://localhost:8000)</li>
+                            </ul>
+                            <p><strong>Támogatott formátumok:</strong> JPG, JPEG, PNG, WEBP</p>
+                            <div class="debug-info" style="margin-top: 20px;">
+                                <strong>Debug info:</strong><br>
+                                Nyisd meg a böngésző fejlesztői eszközeit (F12) és nézd meg a Console fület további információkért.
+                            </div>
                         </div>
                     `;
                     return;
                 }
                 
-                console.log(`${imageUrls.length} kép találva, betöltés kezdődik...`);
-                
-                // Sikeres felderítés üzenet
-                gallery.innerHTML = `
-                    <div class="success-message">
-                        ✅ ${imageUrls.length} kép sikeresen felderítve! Elemzés folyamatban...
-                    </div>
-                `;
+                console.log(`✅ ${imageUrls.length} kép sikeresen felderítve!`);
+                showDebugInfo(`${imageUrls.length} kép találva, elemzés kezdődik...`);
                 
                 let gpsCount = 0;
                 
@@ -587,9 +643,10 @@
                             card.style.opacity = '0';
                             card.style.transform = 'translateY(30px)';
                             
-                            // Első kép esetén eltávolítjuk a success üzenetet
+                            // Első kép esetén eltávolítjuk a debug üzeneteket
                             if (i === 0) {
-                                gallery.innerHTML = '';
+                                const debugInfos = gallery.querySelectorAll('.debug-info, .loading');
+                                debugInfos.forEach(el => el.remove());
                             }
                             
                             gallery.appendChild(card);
@@ -609,34 +666,56 @@
                             updateStats(i + 1, gpsCount, i + 1);
                             
                         } catch (error) {
-                            console.error(`Hiba a ${i+1}. kép feldolgozásánál:`, error);
+                            console.error(`❌ Hiba a ${i+1}. kép feldolgozásánál:`, error);
                         }
-                    }, i * 400); // Lassabb animáció a jobb UX-ért
+                    }, i * 500); // Lassabb animáció a jobb UX-ért
                 }
                 
             } catch (error) {
-                console.error('Galéria betöltési hiba:', error);
+                console.error('❌ Galéria betöltési hiba:', error);
                 gallery.innerHTML = `
                     <div class="error-message">
                         <h3>❌ Hiba történt a képek betöltése során</h3>
                         <p><strong>Hibaüzenet:</strong> ${error.message}</p>
-                        <p>Ellenőrizd, hogy az "images" mappa létezik és tartalmaz képeket.</p>
+                        <p>Ellenőrizd a böngésző fejlesztői eszközeinek Console fülét további részletekért.</p>
+                        <div class="debug-info" style="margin-top: 15px;">
+                            <strong>Hibaelhárítási lépések:</strong><br>
+                            1. Ellenőrizd, hogy a Python webszerver fut<br>
+                            2. Győződj meg róla, hogy az images mappa létezik<br>
+                            3. Nézd meg a Network fület a fejlesztői eszközökben<br>
+                            4. Próbáld meg frissíteni az oldalt (Ctrl+F5)
+                        </div>
                     </div>
                 `;
             }
         }
 
+        // Debug funkció a konzolhoz
+        window.debugImagePaths = async function() {
+            console.log('🔍 Debug: Képútvonalak tesztelése...');
+            const testPaths = [
+                './images/DSC_2007.jpg',
+                './images/DSC_2007-2048-FB-LC_t.jpg',
+                './images/IMG_001.jpg',
+                './images/image1.jpg',
+                './images/photo1.jpg'
+            ];
+            
+            for (const path of testPaths) {
+                try {
+                    const response = await fetch(path, { method: 'HEAD' });
+                    console.log(`${response.ok ? '✅' : '❌'} ${path} - Status: ${response.status}`);
+                } catch (error) {
+                    console.log(`❌ ${path} - Hiba: ${error.message}`);
+                }
+            }
+        };
+
         // Oldal betöltésekor indítás
         window.addEventListener('load', () => {
-            console.log('Izland Fotógaléria betöltése...');
+            console.log('🚀 Oldal betöltve, galéria inicializálása...');
             setTimeout(loadGallery, 1500);
         });
-
-        // Debug információk
-        console.log('🏔️ Izland Fotógaléria inicializálva');
-        console.log('📁 Keresési útvonal: ./images/');
-        console.log('🔍 Támogatott formátumok: JPG, JPEG, PNG, WEBP');
     </script>
 </body>
 </html>
-
